@@ -6,7 +6,7 @@ WORKDIR /app
 # 复制 package.json
 COPY package.json ./
 
-# 安装依赖
+# 安装所有依赖（包括 devDependencies，构建需要）
 RUN npm install
 
 # 复制项目文件
