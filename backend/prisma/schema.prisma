@@ -1,0 +1,147 @@
+// Prisma Schema - 家庭药物管理系统
+// 数据库: MySQL 8.0+ @ 192.168.1.4:9005
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表
+model User {
+  id        Int      @id @default(autoincrement())
+  openid    String   @unique @map("openid")
+  unionid   String?  @map("unionid")
+  nickname  String?  @map("nickname")
+  avatar    String?  @map("avatar")
+  role      UserRole @default(MEMBER) @map("role")
+  familyId  Int?     @map("family_id")
+  family    Family?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("users")
+  @@index([familyId], map: "idx_family")
+}
+
+// 用户角色枚举
+enum UserRole {
+  ADMIN   // 管理员
+  MEMBER  // 普通成员
+}
+
+// 家庭表
+model Family {
+  id         Int           @id @default(autoincrement())
+  name       String        @map("name")
+  inviteCode String        @unique @map("invite_code")
+  createdBy  Int           @map("created_by")
+  members    FamilyMember[]
+  medications Medication[]
+  users      User[]
+  invitations Invitation[]
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  @@map("families")
+  @@index([inviteCode], map: "idx_invite")
+}
+
+// 家庭成员表
+model FamilyMember {
+  id             Int             @id @default(autoincrement())
+  familyId       Int             @map("family_id")
+  family         Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  name           String          @map("name")
+  relation       String?         @map("relation")
+  allergies      Json?           @map("allergies") // [{"drug": "青霉素", "severity": "严重"}]
+  medicalHistory Json?           @map("medical_history") // [{"condition": "高血压", "diagnosedAt": "2020-01-01"}]
+  createdBy      Int             @map("created_by")
+  medications    Medication[]
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
+
+  @@map("family_members")
+  @@index([familyId], map: "idx_family")
+}
+
+// 药物表
+model Medication {
+  id            Int             @id @default(autoincrement())
+  familyId      Int             @map("family_id")
+  family        Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  memberId      Int             @map("member_id")
+  member        FamilyMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  name          String          @map("name")
+  photo         String?         @map("photo")
+  dosage        String?         @map("dosage") // 用法用量
+  totalQuantity String?         @map("total_quantity") // 药物总量
+  startDate     DateTime?       @map("start_date") // 开始用药日期
+  endDate       DateTime?       @map("end_date") // 预计/实际吃完日期
+  expiryDate    DateTime        @map("expiry_date") // 过期日期
+  status        MedicationStatus @default(ACTIVE) @map("status")
+  notes         String?         @map("notes")
+  createdBy     Int             @map("created_by")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @default(now()) @updatedAt @map("updated_at")
+
+  @@map("medications")
+  @@index([familyId, status], map: "idx_family_status")
+  @@index([expiryDate], map: "idx_expiry")
+  @@index([memberId], map: "idx_member")
+}
+
+// 药物状态枚举
+enum MedicationStatus {
+  ACTIVE     // 使用中
+  ARCHIVED   // 已归档
+}
+
+// 邀请记录表
+model Invitation {
+  id           Int              @id @default(autoincrement())
+  familyId     Int              @map("family_id")
+  family       Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  inviteCode   String           @unique @map("invite_code")
+  invitedBy    Int              @map("invited_by")
+  invitedOpenid String?         @map("invited_openid")
+  status       InvitationStatus @default(PENDING) @map("status")
+  expiresAt    DateTime         @map("expires_at")
+  acceptedAt   DateTime?        @map("accepted_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  @@map("invitations")
+  @@index([inviteCode], map: "idx_code")
+  @@index([familyId], map: "idx_family")
+}
+
+// 邀请状态枚举
+enum InvitationStatus {
+  PENDING   // 待接受
+  ACCEPTED  // 已接受
+  EXPIRED   // 已过期
+}
+
+// 管理员表（后台管理专用）
+model Admin {
+  id        Int        @id @default(autoincrement())
+  email     String     @unique
+  password  String
+  name      String?
+  role      AdminRole  @default(ADMIN)
+  isActive  Boolean    @default(true) @map("is_active")
+  lastLogin DateTime?  @map("last_login")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at")
+
+  @@map("admins")
+}
+
+// 管理员角色枚举
+enum AdminRole {
+  SUPER_ADMIN  // 超级管理员
+  ADMIN        // 普通管理员
+}
