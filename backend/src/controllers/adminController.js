@@ -1,9 +1,7 @@
 // 管理员控制器
-const { Admin, User, Family, FamilyMember, Medication } = require('@prisma/client');
+const prisma = require('../utils/prisma');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
-const prisma = new PrismaClient();
 
 // 管理员登录
 exports.adminLogin = async (req, res) => {
